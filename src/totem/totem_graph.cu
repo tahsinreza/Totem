@@ -647,6 +647,17 @@ PRIVATE void initialize_device_partitioned_edges(const graph_t* graph_h,
                        &graph_h->edges[graph_d->edge_count_ext],
                        mapped_edge_count * sizeof(vid_t),
                        cudaMemcpyDefault));
+  if (graph_d->weighted) {
+    CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(weight_t),
+                           TOTEM_MEM_HOST_MAPPED,
+                           reinterpret_cast<void**>(&graph_d->mapped_weights)));
+    CALL_CU_SAFE(cudaHostGetDevicePointer(reinterpret_cast<void**>
+                                          (&(graph_d->weights)),
+                                          graph_d->mapped_weights, 0));
+    CALL_SAFE(cudaMemcpy(graph_d->weights, graph_h->weights,
+                         graph_h->edge_count * sizeof(weight_t),
+                         cudaMemcpyDefault));
+  }
 }
 
 PRIVATE void initialize_device(const graph_t* graph_h, graph_t* graph_d) {
@@ -676,6 +687,11 @@ PRIVATE void initialize_device(const graph_t* graph_h, graph_t* graph_d) {
         CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(vid_t),
                                TOTEM_MEM_DEVICE,
                                reinterpret_cast<void**>(&graph_d->edges)));
+        if (graph_d->weighted) {
+          CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(weight_t),
+                                 TOTEM_MEM_DEVICE,
+                                 reinterpret_cast<void**>(&graph_d->weights)));
+        }
       }
       break;
     case GPU_GRAPH_MEM_MAPPED:
@@ -694,6 +710,15 @@ PRIVATE void initialize_device(const graph_t* graph_h, graph_t* graph_d) {
         CALL_CU_SAFE(cudaHostGetDevicePointer(reinterpret_cast<void**>
                                               (&(graph_d->edges)),
                                               graph_d->mapped_edges, 0));
+        if (graph_d->weighted) {
+          CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(weight_t),
+                                 TOTEM_MEM_HOST_MAPPED,
+                                 reinterpret_cast<void**>
+                                 (&graph_d->mapped_weights)));
+          CALL_CU_SAFE(cudaHostGetDevicePointer(reinterpret_cast<void**>
+                                              (&(graph_d->weights)),
+                                              graph_d->mapped_weights, 0));
+        }     
       }
       break;
     case GPU_GRAPH_MEM_MAPPED_VERTICES:
@@ -708,6 +733,11 @@ PRIVATE void initialize_device(const graph_t* graph_h, graph_t* graph_d) {
         CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(vid_t),
                                TOTEM_MEM_DEVICE, reinterpret_cast<void**>
                                (&graph_d->edges)));
+        if (graph_d->weighted) {
+          CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(weight_t),
+                                 TOTEM_MEM_DEVICE,
+                                 reinterpret_cast<void**>(&graph_d->weights)));
+        }
       }
       break;
     case GPU_GRAPH_MEM_MAPPED_EDGES:
@@ -722,6 +752,15 @@ PRIVATE void initialize_device(const graph_t* graph_h, graph_t* graph_d) {
         CALL_CU_SAFE(cudaHostGetDevicePointer(reinterpret_cast<void**>
                                               (&(graph_d->edges)),
                                               graph_d->mapped_edges, 0));
+        if (graph_d->weighted) {
+          CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(weight_t),
+                                 TOTEM_MEM_HOST_MAPPED,
+                                 reinterpret_cast<void**>
+                                 (&graph_d->mapped_weights)));
+          CALL_CU_SAFE(cudaHostGetDevicePointer(reinterpret_cast<void**>
+                                              (&(graph_d->weights)),
+                                              graph_d->mapped_weights, 0));
+        }   
       }
       break;
     case GPU_GRAPH_MEM_PARTITIONED_EDGES:
@@ -747,6 +786,11 @@ PRIVATE void initialize_device(const graph_t* graph_h, graph_t* graph_d) {
     CALL_SAFE(cudaMemcpy(graph_d->edges, graph_h->edges,
                          graph_h->edge_count * sizeof(vid_t),
                          cudaMemcpyDefault));
+    if (graph_d->weighted) {
+      CALL_SAFE(cudaMemcpy(graph_d->weights, graph_h->weights,
+                           graph_h->edge_count * sizeof(weight_t),
+                           cudaMemcpyDefault));
+    }
   }
 }
 
@@ -780,14 +824,14 @@ error_t graph_initialize_device(const graph_t* graph_h, graph_t** graph_d,
                  TOTEM_MEM_DEVICE);
   }
 
-  if (graph_h->weighted) {
+  /*if (graph_h->weighted) {
     CALL_SAFE(totem_malloc(graph_h->edge_count * sizeof(weight_t),
                            TOTEM_MEM_DEVICE,
                            reinterpret_cast<void**>(&(*graph_d)->weights)));
     CHK_CU_SUCCESS(cudaMemcpy((*graph_d)->weights, graph_h->weights,
                               graph_h->edge_count * sizeof(weight_t),
                               cudaMemcpyDefault), err);
-  }
+  }*/
 
   return SUCCESS;
 
@@ -819,9 +863,17 @@ void graph_finalize_device(graph_t* graph_d) {
       totem_free(graph_d->edges, TOTEM_MEM_DEVICE);
       totem_free(graph_d->mapped_edges, TOTEM_MEM_HOST_MAPPED);
     }
+    if (graph_d->weighted) {
+      if ((graph_d->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED) ||
+          (graph_d->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_EDGES) || 
+          (graph_d->gpu_graph_mem == GPU_GRAPH_MEM_PARTITIONED_EDGES)) {
+        totem_free(graph_d->mapped_weights, TOTEM_MEM_HOST_MAPPED);
+      } else {
+        totem_free(graph_d->weights, TOTEM_MEM_DEVICE);
+      }
+    }
   }
-
-  if (graph_d->weighted) totem_free(graph_d->weights, TOTEM_MEM_DEVICE);
+  //if (graph_d->weighted) totem_free(graph_d->weights, TOTEM_MEM_DEVICE);
   totem_free(graph_d, TOTEM_MEM_HOST);
 }
 

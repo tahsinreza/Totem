@@ -150,6 +150,11 @@ typedef struct graph_s {
   // is partitioned between device memory and mapped memory on the host, this
   // array stores the part of the edge list placed on the host as memory mapped,
   // while "edges" is the pointer to the partition placed on device memory.
+  weight_t* mapped_weights;
+  // This member is relevant to GPU-based resident graphs. in case the edge list
+  // is partitioned between device memory and mapped memory on the host, this
+  // array stores the part of the edge list placed on the host as memory mapped,
+  // while "edges" is the pointer to the partition placed on device memory.
   vid_t*    edges_ext;
   // In the case the edges list is partitioned between device memory and mapped
   // memory on the host, this member specifies the boundary after which the
