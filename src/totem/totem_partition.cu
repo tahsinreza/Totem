@@ -611,6 +611,7 @@ error_t partition_set_finalize(partition_set_t* pset) {
             subgraph->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_EDGES) {
           totem_free(subgraph->mapped_edges, TOTEM_MEM_HOST_MAPPED);
         } else if ((subgraph->gpu_graph_mem == GPU_GRAPH_MEM_DEVICE) ||
+                   (subgraph->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_WEIGHTS) || 
                    ((subgraph->gpu_graph_mem ==
                      GPU_GRAPH_MEM_PARTITIONED_EDGES) &&
                     (subgraph->vertex_ext < subgraph->vertex_count))) {
@@ -624,7 +625,8 @@ error_t partition_set_finalize(partition_set_t* pset) {
         if (subgraph->weighted) {
           if ((subgraph->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED) ||
               (subgraph->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_EDGES) ||
-              (subgraph->gpu_graph_mem == GPU_GRAPH_MEM_PARTITIONED_EDGES)) {
+              (subgraph->gpu_graph_mem == GPU_GRAPH_MEM_PARTITIONED_EDGES) ||
+              (subgraph->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_WEIGHTS)) {
             totem_free(subgraph->mapped_weights, TOTEM_MEM_HOST_MAPPED);
           } else {
             totem_free(subgraph->weights, TOTEM_MEM_DEVICE);

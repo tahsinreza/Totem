@@ -212,7 +212,7 @@ PRIVATE void benchmark_run() {
   graph_t* graph = NULL;
   CALL_SAFE(graph_initialize(options->graph_file,
                              (options->benchmark == BENCHMARK_SSSP),
-                             &graph));
+                             options->edge_weight_randomized, &graph));
   print_config(graph, options, BENCHMARKS[options->benchmark].name);
 
   void* benchmark_state = NULL;
@@ -230,6 +230,7 @@ PRIVATE void benchmark_run() {
     attr.gpu_graph_mem = options->gpu_graph_mem;
     attr.gpu_par_randomized = options->gpu_par_randomized;
     attr.sorted = options->sorted;
+    attr.edge_weight_randomized = options->edge_weight_randomized;
     attr.edge_sort_dsc = options->edge_sort_dsc;
     attr.push_msg_size = BENCHMARKS[options->benchmark].push_msg_size;
     attr.pull_msg_size = BENCHMARKS[options->benchmark].pull_msg_size;

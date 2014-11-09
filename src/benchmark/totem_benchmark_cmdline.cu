@@ -24,6 +24,7 @@ PRIVATE benchmark_options_t options = {
   false,                 // do not randomize vertex placement across
                          // GPU partitions
   false,                 // Vertex ids will not be sorted by edge degree.
+  false,                 // Assignment of random edge weights is disabled. 
   false,                 // Edges will be sorted ascending by default.
 };
 
@@ -68,9 +69,11 @@ PRIVATE void display_help(char* exe_name, int exit_err) {
          "     %d: Host as memory mapped\n"
          "     %d: Only the vertices array on the host\n"
          "     %d: Only the edges array on the host\n"
+         "     %d: Only the weights array on the host\n"
          "     %d: Edges array partitioned between the device and the host\n"
          "  -o Enables random placement of vertices across GPU partitions\n"
          "     in case of multi-GPU setups (default FALSE)\n"
+         "  -w Enables random assignment of edge weights (0 - 100)\n"
          "  -pNUM Platform\n"
          "     %d: Execute on CPU only (default)\n"
          "     %d: Execute on GPUs only\n"
@@ -90,10 +93,11 @@ PRIVATE void display_help(char* exe_name, int exit_err) {
          BENCHMARK_CLUSTERING_COEFFICIENT, get_gpu_count(), PAR_RANDOM,
          PAR_SORTED_ASC, PAR_SORTED_DSC, GPU_GRAPH_MEM_DEVICE,
          GPU_GRAPH_MEM_MAPPED, GPU_GRAPH_MEM_MAPPED_VERTICES,
-         GPU_GRAPH_MEM_MAPPED_EDGES, GPU_GRAPH_MEM_PARTITIONED_EDGES, 
-         PLATFORM_CPU, PLATFORM_GPU, PLATFORM_HYBRID, REPEAT_MAX,
-         omp_sched_static, omp_sched_dynamic, omp_sched_guided,
-         omp_get_max_threads(), omp_get_max_threads());
+         GPU_GRAPH_MEM_MAPPED_EDGES, GPU_GRAPH_MEM_MAPPED_WEIGHTS,
+         GPU_GRAPH_MEM_PARTITIONED_EDGES, PLATFORM_CPU, PLATFORM_GPU,
+         PLATFORM_HYBRID, REPEAT_MAX, omp_sched_static,
+         omp_sched_dynamic, omp_sched_guided, omp_get_max_threads(),
+         omp_get_max_threads());
   exit(exit_err);
 }
 
@@ -105,7 +109,7 @@ PRIVATE void display_help(char* exe_name, int exit_err) {
 benchmark_options_t* benchmark_cmdline_parse(int argc, char** argv) {
   optarg = NULL;
   int ch, benchmark, platform, par_algo, gpu_graph_mem;
-  while(((ch = getopt(argc, argv, "a:b:eg:i:m:op:qr:s:t:h")) != EOF)) {
+  while(((ch = getopt(argc, argv, "a:b:eg:i:m:owp:qr:s:t:h")) != EOF)) {
     switch (ch) {
       case 'a':
         options.alpha = atoi(optarg);
@@ -150,6 +154,9 @@ benchmark_options_t* benchmark_cmdline_parse(int argc, char** argv) {
         break;
       case 'o':
         options.gpu_par_randomized = true;
+        break;
+      case 'w':
+        options.edge_weight_randomized = true;
         break;
       case 'p':
         platform = atoi(optarg);

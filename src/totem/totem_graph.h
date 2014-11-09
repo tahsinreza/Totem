@@ -96,6 +96,12 @@ const weight_t DEFAULT_EDGE_WEIGHT =  1;
 // Specifies the default vertex value in the vertex list
 const weight_t DEFAULT_VERTEX_VALUE = 0;
 
+// Specifies the lower limit of the random edge weights
+const uint32_t WEIGHT_LOWER_LIMIT = 0;
+
+// Specifies the upper limit of the random edge weights
+const uint32_t WEIGHT_UPPER_LIMIT = 100;
+
 // Type of memory used to place the GPU graph data structure.
 typedef enum {
   GPU_GRAPH_MEM_DEVICE = 0,         // Places the graph on device memory.
@@ -103,6 +109,7 @@ typedef enum {
                                     // mapped space.
   GPU_GRAPH_MEM_MAPPED_VERTICES,    // Only the vertices array on the host.
   GPU_GRAPH_MEM_MAPPED_EDGES,       // Only the edges array on the host.
+  GPU_GRAPH_MEM_MAPPED_WEIGHTS,     // Only the weights array on the host.
   GPU_GRAPH_MEM_PARTITIONED_EDGES,  // Partitions the edges array such that part
                                     // of it is placed on device memory and part
                                     // of it mapped on host memory.
@@ -201,6 +208,19 @@ void graph_allocate(vid_t vertex_count, eid_t edge_count, bool directed,
  */
 error_t graph_initialize(const char* graph_file, bool weighted,
                          graph_t** graph);
+
+/**
+ * reads a graph from the given file and builds a graph data type.
+ * The function allocates graph data type and the buffers within it.
+ * @param[in] graph_file path to the graph file.
+ * @param[in] weighted a flag to indicate loading edge weights.
+ * @param[in] enable_random_weights a flag to indicate if random
+ * edge weight assignment is enabled or not
+ * @param[out] graph a reference to allocated graph_t type.
+ * @return generic success or failure
+ */
+error_t graph_initialize(const char* graph_file, bool weighted,
+                         bool enable_random_weights, graph_t** graph);
 
 /**
  * Frees allocated buffers within the "graph" reference initialized

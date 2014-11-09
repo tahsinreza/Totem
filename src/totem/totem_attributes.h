@@ -56,6 +56,8 @@ typedef struct totem_attr_s {
   bool                  sorted;       /**< Maps the vertex ids in sorted order
                                            by edge degree during the
                                            partitioning phase */
+  bool                  edge_weight_randomized; /**< Randomly assigns edge
+                                                     weights. */
   bool                  edge_sort_dsc; /**< Makes the direction of edge sorting
                                             descending instead of ascending. */
   float                 cpu_par_share; /**< the percentage of edges assigned

@@ -19,6 +19,9 @@ PRIVATE char line[MAX_LINE_LENGTH];
 // Common binary parameters.
 const uint32_t BINARY_MAGIC_WORD = 0x10102048;
 
+// Indicates if random edge weights assignmnet is enabled.
+bool enable_random_edge_weights = false;
+
 /**
  * parses the metadata at the very beginning of the graph file
  * @param[in] file_handler a handler to an opened graph file
@@ -180,6 +183,7 @@ PRIVATE error_t parse_vertex_list(FILE* file_handler, graph_t* graph) {
 PRIVATE error_t parse_edge_list(FILE* file_handler, graph_t* graph) {
   vid_t  vertex_index = 0;
   eid_t  edge_index   = 0;
+  srand(GLOBAL_SEED);
   while (fgets(line, sizeof(line), file_handler) != NULL) {
     line_number++;
 
@@ -208,6 +212,13 @@ PRIVATE error_t parse_edge_list(FILE* file_handler, graph_t* graph) {
                             != NULL)) {
       // TODO(abdullah): Use isnumeric to verify the value.
       weight = (weight_t)atof(token);
+    } else if (graph->weighted && enable_random_edge_weights) {
+      //srand(GLOBAL_SEED);
+      //time_t time_as_seed;
+      //time(&time_as_seed); 
+      //srand((uint32_t)time_as_seed);
+      weight = rand()%((WEIGHT_UPPER_LIMIT + 1) - WEIGHT_LOWER_LIMIT) + 
+               WEIGHT_LOWER_LIMIT; 
     }
 
     if (src_id != vertex_index - 1) {
@@ -290,10 +301,20 @@ PRIVATE error_t graph_initialize_binary(FILE* fh, bool load_weights,
       CHK(fread((*graph)->weights, sizeof(weight_t), edge_count, fh) ==
           edge_count, err_free);
     } else {
+      srand(GLOBAL_SEED); 
       // Set weights to the default value.
       OMP(omp parallel for)
       for (eid_t e = 0; e < edge_count; e++) {
         (*graph)->weights[e] = DEFAULT_EDGE_WEIGHT;
+        if (enable_random_edge_weights) {
+          //srand(GLOBAL_SEED);
+          //time_t time_as_seed;
+          //time(&time_as_seed); 
+          //srand((uint32_t)time_as_seed);
+          (*graph)->weights[e] = rand()%((WEIGHT_UPPER_LIMIT + 1) - 
+                                         WEIGHT_LOWER_LIMIT) + 
+                                 WEIGHT_LOWER_LIMIT; 
+        }
       }
     }
   }
@@ -406,8 +427,14 @@ error_t graph_initialize(const char* graph_file, bool weighted,
   return FAILURE;
 }
 
+error_t graph_initialize(const char* graph_file, bool weighted,
+                         bool enable_random_weights, graph_t** graph) {
+  enable_random_edge_weights = enable_random_weights;
+  return graph_initialize(graph_file, weighted, graph);
+} 
+
 error_t get_subgraph(const graph_t* graph, bool* mask, graph_t** subgraph_ret) {
-  assert(graph && mask);
+  ;assert(graph && mask);
 
   // Used to map vertices in the graph to the subgraph to maintain the
   // requirement that vertex ids start from 0 to vertex_count.
@@ -763,6 +790,25 @@ PRIVATE void initialize_device(const graph_t* graph_h, graph_t* graph_d) {
         }   
       }
       break;
+    case GPU_GRAPH_MEM_MAPPED_WEIGHTS:
+      CALL_SAFE(totem_malloc((vertex_count_batch_padded + 1) * sizeof(eid_t),
+                             TOTEM_MEM_DEVICE,
+                             reinterpret_cast<void**>(&graph_d->vertices)));
+      if (graph_d->edge_count) {
+        CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(vid_t),
+                               TOTEM_MEM_DEVICE,
+                               reinterpret_cast<void**>(&graph_d->edges)));
+        if (graph_d->weighted) {
+          CALL_SAFE(totem_malloc(graph_d->edge_count * sizeof(weight_t),
+                                 TOTEM_MEM_HOST_MAPPED,
+                                 reinterpret_cast<void**>
+                                 (&graph_d->mapped_weights)));
+          CALL_CU_SAFE(cudaHostGetDevicePointer(reinterpret_cast<void**>
+                                              (&(graph_d->weights)),
+                                              graph_d->mapped_weights, 0));
+        }
+      }     
+      break;
     case GPU_GRAPH_MEM_PARTITIONED_EDGES:
       CALL_SAFE(totem_malloc((vertex_count_batch_padded + 1) * sizeof(eid_t),
                              TOTEM_MEM_DEVICE,
@@ -856,6 +902,7 @@ void graph_finalize_device(graph_t* graph_d) {
         (graph_d->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_EDGES)) {
       totem_free(graph_d->mapped_edges, TOTEM_MEM_HOST_MAPPED);
     } else if ((graph_d->gpu_graph_mem == GPU_GRAPH_MEM_DEVICE) ||
+               (graph_d->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_WEIGHTS) ||
                ((graph_d->gpu_graph_mem == GPU_GRAPH_MEM_PARTITIONED_EDGES) &&
                 (graph_d->vertex_ext < graph_d->vertex_count))) {
       totem_free(graph_d->edges, TOTEM_MEM_DEVICE);
@@ -866,7 +913,8 @@ void graph_finalize_device(graph_t* graph_d) {
     if (graph_d->weighted) {
       if ((graph_d->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED) ||
           (graph_d->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_EDGES) || 
-          (graph_d->gpu_graph_mem == GPU_GRAPH_MEM_PARTITIONED_EDGES)) {
+          (graph_d->gpu_graph_mem == GPU_GRAPH_MEM_PARTITIONED_EDGES) ||
+          (graph_d->gpu_graph_mem == GPU_GRAPH_MEM_MAPPED_WEIGHTS)) {
         totem_free(graph_d->mapped_weights, TOTEM_MEM_HOST_MAPPED);
       } else {
         totem_free(graph_d->weights, TOTEM_MEM_DEVICE);
@@ -943,10 +991,31 @@ void graph_sort_nbrs(graph_t* graph, bool edge_sort_dsc) {
   OMP(omp parallel for schedule(guided))
   for (vid_t v = 0; v < graph->vertex_count; v++) {
     vid_t* nbrs = &graph->edges[graph->vertices[v]];
-
+    vid_t nbr_count = graph->vertices[v+1] - graph->vertices[v];
+    vid_t* nbrs_unsorted = NULL; 
+    weight_t* nbr_weights = NULL;
+    weight_t* nbr_weights_unsorted = NULL; 
+    if (graph->weighted) {
+      nbrs_unsorted = (vid_t*)malloc(nbr_count * sizeof(vid_t));
+      memcpy(nbrs_unsorted, nbrs, nbr_count * sizeof(vid_t));
+      nbr_weights = &graph->weights[graph->vertices[v]];
+      nbr_weights_unsorted = (weight_t*)malloc(nbr_count * sizeof(weight_t));
+      memcpy(nbr_weights_unsorted, nbr_weights, nbr_count * sizeof(weight_t)); 
+    }
     // Sort based off of direction given.
     qsort(nbrs, graph->vertices[v+1] - graph->vertices[v], sizeof(vid_t),
           edge_sort_dsc ? compare_ids_dsc : compare_ids_asc);
-    // TODO(treza): Required updates for edge-weights.
+    // Reposition edge weights according to sorted neighbours
+    if (graph->weighted) {
+      for (vid_t i = 0; i < nbr_count; i++) {
+        for (vid_t j = 0; j < nbr_count; j++) {
+          if (nbrs[i] == nbrs_unsorted[j]) {
+            nbr_weights[i] = nbr_weights_unsorted[j];
+          }
+        }
+      }
+      free(nbrs_unsorted);
+      free(nbr_weights_unsorted);
+    } 
   }
 }
