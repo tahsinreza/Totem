@@ -434,7 +434,7 @@ error_t graph_initialize(const char* graph_file, bool weighted,
 } 
 
 error_t get_subgraph(const graph_t* graph, bool* mask, graph_t** subgraph_ret) {
-  ;assert(graph && mask);
+  assert(graph && mask);
 
   // Used to map vertices in the graph to the subgraph to maintain the
   // requirement that vertex ids start from 0 to vertex_count.
@@ -1007,6 +1007,7 @@ void graph_sort_nbrs(graph_t* graph, bool edge_sort_dsc) {
           edge_sort_dsc ? compare_ids_dsc : compare_ids_asc);
     // Reposition edge weights according to sorted neighbours
     if (graph->weighted) {
+      OMP(omp parallel for schedule(guided))
       for (vid_t i = 0; i < nbr_count; i++) {
         for (vid_t j = 0; j < nbr_count; j++) {
           if (nbrs[i] == nbrs_unsorted[j]) {
