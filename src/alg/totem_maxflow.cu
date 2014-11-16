@@ -500,10 +500,10 @@ void push_relabel_cpu(graph_t* graph, vid_t u, vid_t source_id, vid_t sink_id,
   if (height[u] > h_prime) {
     weight_t push_amt = min(e_prime, graph->weights[best_edge_id] -
                             flow[best_edge_id]);
-    __sync_fetch_and_add_float(&flow[best_edge_id], push_amt);
-    __sync_fetch_and_add_float(&flow[reverse_indices[best_edge_id]], -push_amt);
-    __sync_fetch_and_add_float(&excess[u], -push_amt);
-    __sync_fetch_and_add_float(&excess[graph->edges[best_edge_id]], push_amt);
+    __sync_fetch_and_add((int *)&flow[best_edge_id], push_amt);
+    __sync_fetch_and_add((int *)&flow[reverse_indices[best_edge_id]], -push_amt);
+    __sync_fetch_and_add((int *)&excess[u], -push_amt);
+    __sync_fetch_and_add((int *)&excess[graph->edges[best_edge_id]], push_amt);
     *finished = false;
   }
   // Otherwise perform a relabel

@@ -117,7 +117,8 @@ PRIVATE void edgelist_to_graph(
     if (weighted) {
       // Assign random weights to the edges. For no particular reason, the
       // weights are chosen from the range [0, vertex_count].
-      graph->weights[eid] = drand48() * vertex_count;
+      //graph->weights[eid] = drand48() * vertex_count;
+      graph->weights[eid] = (rand()%((100 + 1) - 1)) + 1; 
     }
   }
   free(degree);

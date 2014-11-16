@@ -55,7 +55,7 @@ error_t check_special_cases(const graph_t* graph, vid_t source_id,
     for (vid_t node_id = 0; node_id < graph->vertex_count; node_id++) {
       shortest_distances[node_id] = WEIGHT_MAX;
     }
-    shortest_distances[source_id] =  0.0;
+    shortest_distances[source_id] =  0;
     return SUCCESS;
   }
 
@@ -387,7 +387,7 @@ __host__ error_t sssp_cpu(const graph_t* graph, vid_t source_id,
   bitmap_t active = bitmap_init_cpu(graph->vertex_count);
 
   // Initialize the distance of the source vertex
-  shortest_distances[source_id] =  (weight_t)0.0;
+  shortest_distances[source_id] =  (weight_t)0;
   bitmap_set_cpu(active, source_id);
 
   finished = false;
@@ -406,7 +406,7 @@ __host__ error_t sssp_cpu(const graph_t* graph, vid_t source_id,
         weight_t new_distance = shortest_distances[vertex_id] + 
           graph->weights[i];
         weight_t old_distance =
-          __sync_fetch_and_min_float(&(shortest_distances[neighbor_id]),
+          __sync_fetch_and_min((int *)&(shortest_distances[neighbor_id]),
                                        new_distance);
         if (new_distance < old_distance) {
           bitmap_set_cpu(active, neighbor_id);

@@ -991,7 +991,10 @@ void graph_sort_nbrs(graph_t* graph, bool edge_sort_dsc) {
   OMP(omp parallel for schedule(guided))
   for (vid_t v = 0; v < graph->vertex_count; v++) {
     vid_t* nbrs = &graph->edges[graph->vertices[v]];
-    vid_t nbr_count = graph->vertices[v+1] - graph->vertices[v];
+
+    //weight_t* nbr_weights = &graph->weights[graph->vertices[v]];
+
+    /*vid_t nbr_count = graph->vertices[v+1] - graph->vertices[v];
     vid_t* nbrs_unsorted = NULL; 
     weight_t* nbr_weights = NULL;
     weight_t* nbr_weights_unsorted = NULL; 
@@ -1001,12 +1004,12 @@ void graph_sort_nbrs(graph_t* graph, bool edge_sort_dsc) {
       nbr_weights = &graph->weights[graph->vertices[v]];
       nbr_weights_unsorted = (weight_t*)malloc(nbr_count * sizeof(weight_t));
       memcpy(nbr_weights_unsorted, nbr_weights, nbr_count * sizeof(weight_t)); 
-    }
+    }*/
     // Sort based off of direction given.
     qsort(nbrs, graph->vertices[v+1] - graph->vertices[v], sizeof(vid_t),
           edge_sort_dsc ? compare_ids_dsc : compare_ids_asc);
     // Reposition edge weights according to sorted neighbours
-    if (graph->weighted) {
+    /*if (graph->weighted) {
       for (vid_t i = 0; i < nbr_count; i++) {
         for (vid_t j = 0; j < nbr_count; j++) {
           if (nbrs[i] == nbrs_unsorted[j]) {
@@ -1016,6 +1019,9 @@ void graph_sort_nbrs(graph_t* graph, bool edge_sort_dsc) {
       }
       free(nbrs_unsorted);
       free(nbr_weights_unsorted);
-    } 
+    }*/
+    //for (vid_t i = 0; i < graph->vertices[v+1] - graph->vertices[v]; i++) {
+    //  printf("\nv[%u] nbr[%u] w[%u]", v, nbrs[i], nbr_weights[i]);
+    //}  
   }
 }

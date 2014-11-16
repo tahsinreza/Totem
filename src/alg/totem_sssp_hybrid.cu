@@ -40,12 +40,12 @@ PRIVATE error_t check_special_cases(vid_t src, weight_t* distance,
   if ((src >= engine_vertex_count()) || (distance == NULL)) {
     return FAILURE;
   } else if (engine_vertex_count() == 1) {
-    distance[0] = 0.0;
+    distance[0] = 0;
     return SUCCESS;
   } else if (engine_edge_count() == 0) {
     // Initialize distance
     totem_memset(distance, WEIGHT_MAX, engine_vertex_count(), TOTEM_MEM_HOST);
-    distance[src] = 0.0;
+    distance[src] = 0;
     return SUCCESS;
   }
   *finished = false;
@@ -70,7 +70,7 @@ void sssp_cpu(partition_t* par, sssp_state_t* state) {
                                          state->distance);
       weight_t new_distance = state->distance[v] + subgraph->weights[i];
       weight_t old_distance =
-          __sync_fetch_and_min_float(dst, new_distance);
+          __sync_fetch_and_min_uint32(dst, new_distance);
       if (new_distance < old_distance) {
         if (nbr_pid == par->id) {
           state->updated[nbr] = true;
@@ -352,7 +352,7 @@ PRIVATE void sssp_init(partition_t* par) {
     // "memset" becuase the source may belong to a partition which
     // resides on the GPU.
     totem_memset(&((state->distance)[GET_VERTEX_ID(state_g.src)]),
-                 (weight_t)0.0, 1, type, par->streams[1]);
+                 (weight_t)0, 1, type, par->streams[1]);
   }
 
   state->finished = engine_get_finished_ptr(par->id);
